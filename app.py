@@ -1,15 +1,6 @@
 import os
-import sys
-import subprocess
-
-# Auto-install openai if missing
-try:
-    from openai import OpenAI
-except ImportError:
-    subprocess.check_call([sys.executable, "-m", "pip", "install", "openai"])
-    from openai import OpenAI
-
 import streamlit as st
+from openai import OpenAI
 
 # 1. PAGE SETUP
 st.set_page_config(page_title="NeuroParent Assistant", page_icon="🧩", layout="wide")
