@@ -1,11 +1,9 @@
 import os
 import streamlit as st
-from dotenv import load_dotenv
 from openai import OpenAI
 
 # Page Configuration
-st.set_page_config(page_title="NeuroParent Assistant", page_icon="🧩", layout="wide")
-load_dotenv()
+st.set_page_config(page_title="NeuroParent Assistant", page_icon="🧩", layout="wide")()
 
 # Initialize OpenAI Client
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
