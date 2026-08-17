@@ -1,7 +1,6 @@
 import os
 import streamlit as st
-from google import genai
-from google.genai import types
+import google.generativeai as genai
 
 # 1. PAGE SETUP
 st.set_page_config(page_title="NeuroParent Assistant", page_icon="🧩", layout="wide")
@@ -13,7 +12,8 @@ if not api_key:
     st.error("⚠️ Gemini API Key missing! Please add GEMINI_API_KEY to your Streamlit App Secrets.")
     st.stop()
 
-client = genai.Client(api_key=api_key)
+# Configure the Gemini client
+genai.configure(api_key=api_key)
 
 # 3. SIDEBAR: CHILD PROFILES
 st.sidebar.title("👨‍👩‍👧‍👦 Child Profiles")
@@ -86,22 +86,22 @@ if user_prompt := st.chat_input(f"Ask something regarding {child_name}..."):
     with st.chat_message("user"):
         st.markdown(user_prompt)
 
+    # Initialize Gemini model with instructions
+    model = genai.GenerativeModel(
+        model_name="gemini-1.5-flash",
+        system_instruction=BASE_SYSTEM_PROMPT
+    )
+
+    # Format history for Google SDK
     contents = []
     for msg in st.session_state.chat_histories[active_child]:
         role = "user" if msg["role"] == "user" else "model"
-        contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg["content"])]))
+        contents.append({"role": role, "parts": [msg["content"]]})
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         try:
-            response = client.models.generate_content(
-                model="gemini-flash",
-                contents=contents,
-                config=types.GenerateContentConfig(
-                    system_instruction=BASE_SYSTEM_PROMPT,
-                    temperature=0.5,
-                )
-            )
+            response = model.generate_content(contents)
             full_response = response.text
             message_placeholder.markdown(full_response)
             st.session_state.chat_histories[active_child].append({"role": "assistant", "content": full_response})
