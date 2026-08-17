@@ -27,7 +27,7 @@ def get_working_model_name():
         # Fallback to any model found
         return models[0] if models else "models/gemini-1.5-flash"
     except Exception:
-        return "gemini-1.5-flash"
+        return "gemini-3.5-flash-lite"
 
 ACTIVE_MODEL_NAME = get_working_model_name()
 
