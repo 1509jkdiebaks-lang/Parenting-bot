@@ -95,7 +95,7 @@ if user_prompt := st.chat_input(f"Ask something regarding {child_name}..."):
         message_placeholder = st.empty()
         try:
             response = client.models.generate_content(
-                model="gemini-1.5-flash",
+                model="gemini-flash",
                 contents=contents,
                 config=types.GenerateContentConfig(
                     system_instruction=BASE_SYSTEM_PROMPT,
