@@ -1,18 +1,19 @@
 import os
 import streamlit as st
-from openai import OpenAI
+from google import genai
+from google.genai import types
 
 # 1. PAGE SETUP
 st.set_page_config(page_title="NeuroParent Assistant", page_icon="🧩", layout="wide")
 
 # 2. GET API KEY FROM STREAMLIT SECRETS OR ENVIRONMENT
-api_key = st.secrets.get("OPENAI_API_KEY") or os.environ.get("OPENAI_API_KEY")
+api_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
 if not api_key:
-    st.error("⚠️ OpenAI API Key missing! Please add OPENAI_API_KEY to your Streamlit App Secrets.")
+    st.error("⚠️ Gemini API Key missing! Please add GEMINI_API_KEY to your Streamlit App Secrets.")
     st.stop()
 
-client = OpenAI(api_key=api_key)
+client = genai.Client(api_key=api_key)
 
 # 3. SIDEBAR: CHILD PROFILES
 st.sidebar.title("👨‍👩‍👧‍👦 Child Profiles")
@@ -85,20 +86,24 @@ if user_prompt := st.chat_input(f"Ask something regarding {child_name}..."):
     with st.chat_message("user"):
         st.markdown(user_prompt)
 
-    api_messages = [{"role": "system", "content": BASE_SYSTEM_PROMPT}]
+    contents = []
     for msg in st.session_state.chat_histories[active_child]:
-        api_messages.append({"role": msg["role"], "content": msg["content"]})
+        role = "user" if msg["role"] == "user" else "model"
+        contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg["content"])]))
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         try:
-            response = client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=api_messages,
-                temperature=0.5
+            response = client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=BASE_SYSTEM_PROMPT,
+                    temperature=0.5,
+                )
             )
-            full_response = response.choices[0].message.content
+            full_response = response.text
             message_placeholder.markdown(full_response)
             st.session_state.chat_histories[active_child].append({"role": "assistant", "content": full_response})
         except Exception as e:
-            st.error(f"Error querying OpenAI API: {e}")
+            st.error(f"Error querying Gemini API: {e}")
