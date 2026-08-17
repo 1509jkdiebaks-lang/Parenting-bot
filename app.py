@@ -5,7 +5,7 @@ import google.generativeai as genai
 # 1. PAGE SETUP
 st.set_page_config(page_title="NeuroParent Assistant", page_icon="🧩", layout="wide")
 
-# 2. GET API KEY FROM STREAMLIT SECRETS OR ENVIRONMENT
+# 2. GET API KEY
 api_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
 if not api_key:
@@ -15,9 +15,25 @@ if not api_key:
 # Configure the Gemini client
 genai.configure(api_key=api_key)
 
+# DYNAMICALLY FIND A WORKING FLASH MODEL FOR YOUR KEY
+@st.cache_resource
+def get_working_model_name():
+    try:
+        models = [m.name for m in genai.list_models() if "generateContent" in m.supported_generation_methods]
+        # Look for flash models first
+        for m in models:
+            if "flash" in m:
+                return m
+        # Fallback to any model found
+        return models[0] if models else "models/gemini-1.5-flash"
+    except Exception:
+        return "gemini-1.5-flash"
+
+ACTIVE_MODEL_NAME = get_working_model_name()
+
 # 3. SIDEBAR: CHILD PROFILES
 st.sidebar.title("👨‍👩‍👧‍👦 Child Profiles")
-st.sidebar.caption("Configure profile details to personalize guidance.")
+st.sidebar.caption(f"Connected to model: `{ACTIVE_MODEL_NAME}`")
 
 active_child = st.sidebar.radio("Select Active Child:", ["Child 1", "Child 2"])
 
@@ -86,9 +102,9 @@ if user_prompt := st.chat_input(f"Ask something regarding {child_name}..."):
     with st.chat_message("user"):
         st.markdown(user_prompt)
 
-    # Initialize Gemini model with instructions
+    # Initialize Gemini model dynamically
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash-lite",
+        model_name=ACTIVE_MODEL_NAME,
         system_instruction=BASE_SYSTEM_PROMPT
     )
 
@@ -106,4 +122,4 @@ if user_prompt := st.chat_input(f"Ask something regarding {child_name}..."):
             message_placeholder.markdown(full_response)
             st.session_state.chat_histories[active_child].append({"role": "assistant", "content": full_response})
         except Exception as e:
-            st.error(f"Error querying Gemini API: {e}")
+            st.error(f"Error querying Gemini API ({ACTIVE_MODEL_NAME}): {e}")
