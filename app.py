@@ -1,39 +1,23 @@
 import os
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 
 # 1. PAGE SETUP
 st.set_page_config(page_title="NeuroParent Assistant", page_icon="🧩", layout="wide")
 
-# 2. GET API KEY
+# 2. GET API KEY FROM STREAMLIT SECRETS OR ENVIRONMENT
 api_key = st.secrets.get("GEMINI_API_KEY") or os.environ.get("GEMINI_API_KEY")
 
 if not api_key:
     st.error("⚠️ Gemini API Key missing! Please add GEMINI_API_KEY to your Streamlit App Secrets.")
     st.stop()
 
-# Configure the Gemini client
-genai.configure(api_key=api_key)
-
-# DYNAMICALLY FIND A WORKING FLASH MODEL FOR YOUR KEY
-@st.cache_resource
-def get_working_model_name():
-    try:
-        models = [m.name for m in genai.list_models() if "generateContent" in m.supported_generation_methods]
-        # Look for flash models first
-        for m in models:
-            if "flash" in m:
-                return m
-        # Fallback to any model found
-        return models[0] if models else "models/gemini-1.5-flash"
-    except Exception:
-        return "gemini-3.5-flash-lite"
-
-ACTIVE_MODEL_NAME = get_working_model_name()
+client = genai.Client(api_key=api_key)
 
 # 3. SIDEBAR: CHILD PROFILES
 st.sidebar.title("👨‍👩‍👧‍👦 Child Profiles")
-st.sidebar.caption(f"Connected to model: `{ACTIVE_MODEL_NAME}`")
+st.sidebar.caption("Configure profile details to personalize guidance.")
 
 active_child = st.sidebar.radio("Select Active Child:", ["Child 1", "Child 2"])
 
@@ -102,24 +86,24 @@ if user_prompt := st.chat_input(f"Ask something regarding {child_name}..."):
     with st.chat_message("user"):
         st.markdown(user_prompt)
 
-    # Initialize Gemini model dynamically
-    model = genai.GenerativeModel(
-        model_name=ACTIVE_MODEL_NAME,
-        system_instruction=BASE_SYSTEM_PROMPT
-    )
-
-    # Format history for Google SDK
     contents = []
     for msg in st.session_state.chat_histories[active_child]:
         role = "user" if msg["role"] == "user" else "model"
-        contents.append({"role": role, "parts": [msg["content"]]})
+        contents.append(types.Content(role=role, parts=[types.Part.from_text(text=msg["content"])]))
 
     with st.chat_message("assistant"):
         message_placeholder = st.empty()
         try:
-            response = model.generate_content(contents)
+            response = client.models.generate_content(
+                model="gemini-3.6-flash",
+                contents=contents,
+                config=types.GenerateContentConfig(
+                    system_instruction=BASE_SYSTEM_PROMPT,
+                    temperature=0.5,
+                )
+            )
             full_response = response.text
             message_placeholder.markdown(full_response)
             st.session_state.chat_histories[active_child].append({"role": "assistant", "content": full_response})
         except Exception as e:
-            st.error(f"Error querying Gemini API ({ACTIVE_MODEL_NAME}): {e}")
+            st.error(f"Error querying Gemini API: {e}")
