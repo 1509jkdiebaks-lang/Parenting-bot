@@ -88,7 +88,7 @@ if user_prompt := st.chat_input(f"Ask something regarding {child_name}..."):
 
     # Initialize Gemini model with instructions
     model = genai.GenerativeModel(
-        model_name="gemini-2.5-flash",
+        model_name="gemini-2.5-flash-lite",
         system_instruction=BASE_SYSTEM_PROMPT
     )
 
